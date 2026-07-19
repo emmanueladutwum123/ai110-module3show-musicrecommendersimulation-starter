@@ -11,7 +11,7 @@ Your goal is to:
 - Evaluate what your system gets right and wrong
 - Reflect on how this mirrors real world AI recommenders
 
-VibeFinder is a small content-based-filtering music recommender: it scores every
+VibeSonar is a small content-based-filtering music recommender: it scores every
 song in a catalog against a listener's stated taste profile (favorite genre,
 favorite mood, target energy, whether they like acoustic songs), then ranks and
 returns the top matches with a plain-language explanation of why each one made
@@ -353,5 +353,22 @@ Write 1 to 2 paragraphs here about what you learned:
 - about how recommenders turn data into predictions
 - about where bias or unfairness could show up in systems like this
 
+Building this made it obvious that "prediction" here is really just
+weighted arithmetic over labeled attributes — a recommender turns data into
+a suggestion by scoring every candidate against a stated (or inferred) target
+and sorting the results. There's no magic step where the system "understands"
+music; it's comparing numbers and category labels, and the quality of the
+result is entirely bounded by how well those attributes actually capture
+what a listener means by "vibe."
 
+Bias showed up in two concrete, testable ways rather than as an abstract
+worry: catalog composition (genres with only one song can't produce a
+genuinely competitive recommendation) and weight design (a strong genre
+weight can steamroll a conflicting mood signal instead of surfacing the
+conflict honestly). Neither came from a coding mistake — both came from
+reasonable-looking design decisions interacting in ways that only became
+visible once I deliberately tried to break the system with adversarial
+profiles. That's the main takeaway: a recommender can be bug-free and still
+be unfair, and finding that requires testing for it on purpose, not just
+checking that the "happy path" looks right.
 

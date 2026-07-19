@@ -2,60 +2,90 @@
 
 ## 1. Model Name  
 
-Give your model a short, descriptive name.  
-Example: **VibeFinder 1.0**  
+**VibeSonar 1.0** — it "pings" a small song catalog with your stated taste
+and ranks whatever echoes back closest.
 
 ---
 
 ## 2. Intended Use  
 
-Describe what your recommender is designed to do and who it is for. 
+VibeSonar takes a listener's explicitly stated taste — favorite genre,
+favorite mood, a target energy level, and whether they like acoustic songs —
+and ranks a small song catalog by how well each song matches, showing the
+specific reasons behind every recommendation.
 
-Prompts:  
-
-- What kind of recommendations does it generate  
-- What assumptions does it make about the user  
-- Is this for real users or classroom exploration  
+It assumes the listener can put their taste into words up front. It does not
+watch what you actually play, skip, or replay — there's no listening history
+here, because there are no real users. This is a classroom simulation built
+to learn how a basic recommender works end to end, not a production system.
+It's meant to run on the toy 18-song catalog in this repo, not on real
+streaming data or real listeners.
 
 ---
 
 ## 3. How the Model Works  
 
-Explain your scoring approach in simple language.  
+For every song in the catalog, VibeSonar checks a few things and adds up
+points:
 
-Prompts:  
+- Does the song's genre match what you said you like? If yes, that's worth
+  the most points of anything it checks.
+- Does the song's mood match yours? If yes, that's worth some points too,
+  just not as many as genre.
+- How close is the song's energy level to the energy you asked for? The
+  closer it is, the more points it earns — a song doesn't need to be the
+  *most* energetic thing in the catalog, it just needs to be *close* to what
+  you wanted.
+- If you said you like acoustic songs, a song that's quite acoustic gets a
+  small bonus.
 
-- What features of each song are used (genre, energy, mood, etc.)  
-- What user preferences are considered  
-- How does the model turn those into a score  
-- What changes did you make from the starter logic  
+Every song ends up with one number (its score) and a short list of plain-
+English reasons for that number. Then VibeSonar sorts every song by that
+score and hands back the top 5, reasons included.
 
-Avoid code here. Pretend you are explaining the idea to a friend who does not program.
+The starter code was empty (just placeholders that returned nothing). I
+built all of the actual scoring math described above, added the acoustic bonus
+as a new signal, and made sure the exact same rules apply whether you're
+using the simple version (plain data) or the more structured version (proper
+song/user objects) — so there's only one true "recipe," not two that could
+quietly drift apart.
 
 ---
 
 ## 4. Data  
 
-Describe the dataset the model uses.  
+The catalog has **18 songs** — the 10 that came with the starter project,
+plus 8 I added to cover genres and moods that were completely missing (metal,
+classical, hip-hop, reggae, country, r&b, folk, and edm). Between them, the
+songs span 15 different genres and 14 different moods.
 
-Prompts:  
+Each song has: title, artist, genre, mood, energy, tempo, valence,
+danceability, and acousticness.
 
-- How many songs are in the catalog  
-- What genres or moods are represented  
-- Did you add or remove data  
-- Are there parts of musical taste missing in the dataset  
+What's missing: most genres in the catalog only have exactly one song, so
+there's no real competition to find the "best" song within most genres —
+whatever song exists just wins by default. There's also nothing about
+lyrics, vocals, production style, or era, and no real listener behavior
+(skips, replays, saves) — everything here is a hand-picked, hand-labeled
+attribute, not something learned from real listening data.
 
 ---
 
 ## 5. Strengths  
 
-Where does your system seem to work well  
-
-Prompts:  
-
-- User types for which it gives reasonable results  
-- Any patterns you think your scoring captures correctly  
-- Cases where the recommendations matched your intuition  
+- When a user's taste clearly matches a song in the catalog, VibeSonar finds
+  it convincingly — the Chill Lofi profile scored a perfect 5.00 (the
+  maximum possible) on a song that matched genre, mood, energy, and the
+  acoustic preference all at once.
+- The explanations are genuinely useful, not just decoration — you can see
+  exactly which signals contributed to a score instead of trusting a mystery
+  number.
+- It tells very different tastes apart well: a high-energy pop fan and a
+  chill lofi fan land on completely different, sensible top picks even
+  though both profiles are "clear" preferences.
+- It doesn't break when a preference can't be matched — asking for a genre
+  that isn't in the catalog still returns a coherent, reasoned list instead
+  of crashing or returning nothing.
 
 ---
 
@@ -131,23 +161,47 @@ recommended.
 
 ## 8. Future Work  
 
-Ideas for how you would improve the model next.  
-
-Prompts:  
-
-- Additional features or preferences  
-- Better ways to explain recommendations  
-- Improving diversity among the top results  
-- Handling more complex user tastes  
+- Score `valence` too, so mood-matching isn't all-or-nothing. Right now a
+  "happy" song and an "uplifting" song are just as far apart as a "happy"
+  song and an "aggressive" song, even though the first pair probably feels
+  much more similar. Valence would let close-but-not-identical moods still
+  get partial credit.
+- Make the acoustic bonus scale with *how* acoustic a song is, instead of a
+  flat +0.5 the moment it crosses a threshold — the same "closeness, not a
+  cutoff" idea already used for energy.
+- Grow the catalog so every genre has several songs, so a genre match means
+  picking the *best available* song in that genre, not just the *only* one.
+- Add an honest "no strong match" signal instead of always confidently
+  returning a top 5, even in cases like the unmatched-genre test where the
+  system is really just falling back to weaker signals.
 
 ---
 
 ## 9. Personal Reflection  
 
-A few sentences about your experience.  
+The biggest learning moment was the adversarial "happy metal" test. Seeing
+an aggressive-mood song get ranked first for someone who explicitly asked
+for "happy" music made the idea of algorithmic bias click in a way that
+reading about it never did — it wasn't a bug, it was the scoring formula
+doing exactly what it was told to do. That's a small, low-stakes version of
+exactly how real biased systems behave: not by malfunctioning, but by
+faithfully optimizing rules that don't fully capture what people actually
+want.
 
-Prompts:  
+Using AI as a coding partner sped up writing and testing the scoring logic a
+lot, especially for coming up with edge cases I wouldn't have thought to test
+myself (like the genre that doesn't exist in the catalog at all). But I had
+to actually run the code and read the real terminal output to trust any
+claim about *why* a song scored the way it did — an explanation that sounds
+reasonable isn't the same as one that's been checked against what the code
+actually does.
 
-- What you learned about recommender systems  
-- Something unexpected or interesting you discovered  
-- How this changed the way you think about music recommendation apps  
+What surprised me most is how convincing a fairly simple weighted-sum
+formula can feel once it's wrapped in plain-language reasons. Seeing
+"Because: genre match (+2.0); mood match (+1.0)" printed next to a song
+makes the system feel a lot smarter than the underlying math actually is —
+which is probably true of real recommendation apps too. If I extended this
+project, I'd want to add a simulated collaborative-filtering signal (even a
+fake "users who picked X also liked Y" table) to compare against the pure
+content-based approach, and add a diversity pass so the top 5 aren't all
+near-duplicates of each other.
