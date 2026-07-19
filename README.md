@@ -109,6 +109,14 @@ enjoy lofi regardless of mood match); energy gets a comparable ceiling to
 genre so a strong energy match can still meaningfully move a song up even
 without a genre/mood hit, rather than being drowned out entirely.
 
+**Stretch feature — swappable scoring strategies.** This recipe (now called
+`BalancedStrategy`) is one of three interchangeable `ScoringStrategy`
+implementations in `src/recommender.py` — see `EnergyFocusedStrategy` (the
+Phase 4 weight-shift experiment, made permanent) and `GenreOnlyStrategy` (a
+minimal baseline). Run `python -c "from src.main import compare_strategies; compare_strategies()"`
+to see the same profile ranked three different ways. Full design rationale
+in `ai_interactions.md`.
+
 **Expected bias:** this recipe over-rewards catalog songs that happen to sit
 exactly on a genre/mood label the user names, and under-rewards genuinely
 similar-vibe songs that use a different label for a similar feeling (e.g.

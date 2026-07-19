@@ -9,7 +9,13 @@ Uses the functional API from recommender.py:
 - recommend_songs
 """
 
-from src.recommender import load_songs, recommend_songs
+from src.recommender import (
+    load_songs,
+    recommend_songs,
+    BalancedStrategy,
+    EnergyFocusedStrategy,
+    GenreOnlyStrategy,
+)
 
 # Default profile — see README "Algorithm Recipe" for how this is scored.
 DEFAULT_PROFILE = {
@@ -57,11 +63,11 @@ EVAL_PROFILES = {
 }
 
 
-def print_recommendations(label: str, user_prefs: dict, songs: list, k: int = 5) -> None:
+def print_recommendations(label: str, user_prefs: dict, songs: list, k: int = 5, strategy=None) -> None:
     """Prints a labeled, ranked, explained top-k recommendation list for one profile."""
     print(f"\n=== {label} ===")
     print(f"Profile: {user_prefs}")
-    for song, score, explanation in recommend_songs(user_prefs, songs, k=k):
+    for song, score, explanation in recommend_songs(user_prefs, songs, k=k, strategy=strategy):
         print(f"{song['title']} - Score: {score:.2f}")
         print(f"Because: {explanation}")
 
@@ -78,6 +84,19 @@ def evaluate() -> None:
     print(f"Loaded songs: {len(songs)}")
     for label, prefs in EVAL_PROFILES.items():
         print_recommendations(label, prefs, songs)
+
+
+def compare_strategies() -> None:
+    """Runs the Default profile through every ScoringStrategy (SF10 stretch feature)."""
+    songs = load_songs("data/songs.csv")
+    print(f"Loaded songs: {len(songs)}")
+    strategies = {
+        "Balanced (default)": BalancedStrategy(),
+        "Energy-Focused": EnergyFocusedStrategy(),
+        "Genre-Only": GenreOnlyStrategy(),
+    }
+    for name, strategy in strategies.items():
+        print_recommendations(f"Strategy: {name}", DEFAULT_PROFILE, songs, k=3, strategy=strategy)
 
 
 if __name__ == "__main__":
