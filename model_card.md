@@ -61,29 +61,71 @@ Prompts:
 
 ## 6. Limitations and Bias 
 
-Where the system struggles or behaves unfairly. 
-
-Prompts:  
-
-- Features it does not consider  
-- Genres or moods that are underrepresented  
-- Cases where the system overfits to one preference  
-- Ways the scoring might unintentionally favor some users  
+The catalog is not evenly spread across genres: 13 of the 15 genres have
+exactly one song, while lofi has three and pop has two. That means a user
+whose favorite genre is lofi gets three real candidates to rank between,
+while a user whose favorite genre is classical or reggae only ever gets one
+possible genre match — the system can't tell a "good" classical song from a
+"bad" one because there's nothing to compare it against. This directly
+mirrors a real-world bias: platforms with more data in mainstream genres give
+those listeners richer, more confident recommendations, while niche-taste
+listeners get thin results almost by default, not because their taste is
+unusual. The genre weight (+2.0) is also strong enough to override a missing
+mood match entirely: testing a "favorite_genre=metal, favorite_mood=happy"
+profile returned an aggressive metal song in first place, because it was the
+only metal song available and genre outweighed the mood mismatch — the
+system doesn't have a way to say "no good match exists" when the two signals
+disagree, it just picks the least-bad option. Finally, `valence` (the
+continuous happy↔sad dimension) is tracked in the data but never scored,
+so two songs with very different valence can tie on mood if they share the
+same mood label — a real gap in how well the system captures "vibe."
 
 ---
 
 ## 7. Evaluation  
 
-How you checked whether the recommender behaved as expected. 
+Tested five profiles against the 18-song catalog: three realistic tastes
+(High-Energy Pop, Chill Lofi, Deep Intense Rock) and two adversarial ones
+designed to break the system (a genre/mood conflict — "happy metal" — and a
+genre that doesn't exist in the catalog at all, "k-pop"). Full outputs are in
+the README's "Experiments You Tried" section.
 
-Prompts:  
+**Pairwise comparisons:**
 
-- Which user profiles you tested  
-- What you looked for in the recommendations  
-- What surprised you  
-- Any simple tests or comparisons you ran  
+- **High-Energy Pop vs. Deep Intense Rock** — these landed on completely
+  different top songs (Sunrise City vs. Storm Runner) even though both
+  target energy ~0.9. That's the point: energy alone isn't the whole story,
+  genre and mood pull the ranking toward genuinely different songs even at
+  matched intensity. Makes sense — a fan of intense rock and a fan of
+  high-energy pop are not asking for the same thing just because both want
+  something intense.
+- **High-Energy Pop vs. Chill Lofi** — near-total reversal, as expected:
+  Chill Lofi's top pick (Library Rain, energy 0.35) would score close to
+  zero on energy for the High-Energy Pop profile (target 0.9), and vice
+  versa. The energy-closeness formula is doing exactly its job here.
+- **Deep Intense Rock vs. Adversarial Happy Metal** — both target energy 0.9
+  and both have thin genre pools (1 song each: rock, metal), but Deep
+  Intense Rock's mood (`intense`) actually matches its top song while Happy
+  Metal's mood (`happy`) doesn't match Iron Requiem's real mood
+  (`aggressive`) at all. Both still returned their genre's one song in
+  first place — showing the genre weight is strong enough to win even
+  when the mood signal actively disagrees with the result, not just when
+  it's neutral/absent.
+- **What surprised me:** I expected the "unknown genre" adversarial case
+  (k-pop) to produce a much weaker or more random-looking list. Instead it
+  gracefully fell back to mood + energy matches and still returned a
+  coherent top 5 — the scoring recipe degrades sensibly even when one whole
+  signal is unavailable, which wasn't guaranteed by the design and was worth
+  confirming with an actual test rather than assuming it.
 
-No need for numeric metrics unless you created some.
+**Weight-shift experiment:** temporarily doubled the energy weight and halved
+the genre weight (not shipped — reverted after testing). This flipped the
+rank order for the Default profile: Rooftop Lights (mood match, no genre
+match) overtook Gym Hero (genre match, no mood match), because a very close
+energy match started outweighing a genre match paired with a looser energy
+match. Confirms the system is genuinely sensitive to these weight choices,
+not just cosmetically — small tuning changes visibly reshuffle who gets
+recommended.
 
 ---
 

@@ -198,25 +198,147 @@ Because: energy closeness (+1.42)
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+### Stress-testing with five profiles
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+Ran `evaluate()` in `src/main.py` (three "normal" tastes + two adversarial
+ones) against the 18-song catalog. Full output:
+
+```
+Loaded songs: 18
+
+=== High-Energy Pop ===
+Profile: {'favorite_genre': 'pop', 'favorite_mood': 'happy', 'target_energy': 0.9, 'likes_acoustic': False}
+Sunrise City - Score: 4.38
+Because: genre match (+2.0); mood match (+1.0); energy closeness (+1.38)
+Gym Hero - Score: 3.46
+Because: genre match (+2.0); energy closeness (+1.46)
+Rooftop Lights - Score: 2.29
+Because: mood match (+1.0); energy closeness (+1.29)
+Storm Runner - Score: 1.48
+Because: energy closeness (+1.48)
+Neon Pulse - Score: 1.43
+Because: energy closeness (+1.43)
+
+=== Chill Lofi ===
+Profile: {'favorite_genre': 'lofi', 'favorite_mood': 'chill', 'target_energy': 0.35, 'likes_acoustic': True}
+Library Rain - Score: 5.00
+Because: genre match (+2.0); mood match (+1.0); energy closeness (+1.50); acoustic match (+0.5)
+Midnight Coding - Score: 4.89
+Because: genre match (+2.0); mood match (+1.0); energy closeness (+1.40); acoustic match (+0.5)
+Focus Flow - Score: 3.92
+Because: genre match (+2.0); energy closeness (+1.42); acoustic match (+0.5)
+Spacewalk Thoughts - Score: 2.90
+Because: mood match (+1.0); energy closeness (+1.40); acoustic match (+0.5)
+Coffee Shop Stories - Score: 1.97
+Because: energy closeness (+1.47); acoustic match (+0.5)
+
+=== Deep Intense Rock ===
+Profile: {'favorite_genre': 'rock', 'favorite_mood': 'intense', 'target_energy': 0.9, 'likes_acoustic': False}
+Storm Runner - Score: 4.48
+Because: genre match (+2.0); mood match (+1.0); energy closeness (+1.48)
+Gym Hero - Score: 2.46
+Because: mood match (+1.0); energy closeness (+1.46)
+Neon Pulse - Score: 1.43
+Because: energy closeness (+1.43)
+Iron Requiem - Score: 1.40
+Because: energy closeness (+1.40)
+Sunrise City - Score: 1.38
+Because: energy closeness (+1.38)
+
+=== Adversarial: Happy Metal (conflicting genre/mood) ===
+Profile: {'favorite_genre': 'metal', 'favorite_mood': 'happy', 'target_energy': 0.9, 'likes_acoustic': False}
+Iron Requiem - Score: 3.40
+Because: genre match (+2.0); energy closeness (+1.40)
+Sunrise City - Score: 2.38
+Because: mood match (+1.0); energy closeness (+1.38)
+Rooftop Lights - Score: 2.29
+Because: mood match (+1.0); energy closeness (+1.29)
+Storm Runner - Score: 1.48
+Because: energy closeness (+1.48)
+Gym Hero - Score: 1.46
+Because: energy closeness (+1.46)
+
+=== Adversarial: Unknown Genre (not in catalog) ===
+Profile: {'favorite_genre': 'k-pop', 'favorite_mood': 'happy', 'target_energy': 0.7, 'likes_acoustic': False}
+Rooftop Lights - Score: 2.41
+Because: mood match (+1.0); energy closeness (+1.41)
+Sunrise City - Score: 2.32
+Because: mood match (+1.0); energy closeness (+1.32)
+Night Drive Loop - Score: 1.42
+Because: energy closeness (+1.42)
+Concrete Kingdom - Score: 1.35
+Because: energy closeness (+1.35)
+Golden Hour Sway - Score: 1.35
+Because: energy closeness (+1.35)
+```
+
+**What this revealed:**
+
+- **Chill Lofi hit the max possible score (5.00)** on Library Rain — a song
+  that matches all four signals at once. That's the system working exactly
+  as designed, and it "feels" right: Library Rain and Midnight Coding are
+  genuinely close in vibe to what a lofi/chill/low-energy/acoustic listener
+  wants.
+- **The adversarial "Happy Metal" profile is the most revealing result.**
+  Iron Requiem — a song explicitly tagged `mood=aggressive` — won *first
+  place* for a user who asked for `favorite_mood=happy`, purely because it's
+  the only metal song in the catalog and genre match (+2.0) outweighs the
+  missing mood match. A real listener asking for "happy" music would likely
+  be unhappy (no pun intended) to get handed an aggressive metal track. This
+  confirms the bias flagged in Phase 2: **genre can override mood in a way
+  that doesn't match user intent** when a genre is thin (only one song deep).
+- **The "Unknown Genre" profile degraded gracefully** — with `k-pop` matching
+  nothing in the catalog, the system fell back cleanly to mood + energy
+  matches instead of erroring or returning nothing. Good defensive behavior,
+  but it also means an unmatched genre silently becomes invisible instead of
+  being flagged to the user ("we don't have any k-pop, showing closest mood
+  matches instead" would be more honest — see Future Work in `model_card.md`).
+
+### Weight-shift experiment: genre 2.0→1.0, energy 1.5→3.0
+
+Tested (not shipped — reverted after) doubling energy's weight and halving
+genre's, on the Default and Deep Intense Rock profiles:
+
+```
+Default Pop/Happy — BEFORE: Sunrise City 4.47, Gym Hero 3.30, Rooftop Lights 2.44
+Default Pop/Happy — AFTER:  Sunrise City 4.94, Rooftop Lights 3.88, Gym Hero 3.61
+
+Deep Intense Rock — BEFORE: Storm Runner 4.48, Gym Hero 2.46, Neon Pulse 1.43
+Deep Intense Rock — AFTER:  Storm Runner 4.97, Gym Hero 3.91, Neon Pulse 2.85
+```
+
+**The interesting part isn't the score changes, it's the rank-order flip**:
+under the original weights, Gym Hero (genre match, no mood match) beats
+Rooftop Lights (mood match, no genre match) for the Default profile. Under
+the shifted weights, **Rooftop Lights overtakes Gym Hero** — because energy
+closeness now dominates enough that a very close energy match (Rooftop:
+gap 0.04) outweighs a genre match paired with a middling energy match (Gym
+Hero: gap 0.13). Whether this is "more accurate" is genuinely debatable, not
+a clear win: Rooftop Lights does share the user's stated mood, which arguably
+makes it a *better* recommendation than the genre-only match — but it also
+shows the system is quite sensitive to weight choices, and a small tuning
+change reshuffles results in ways a user would definitely notice. This is
+exactly the kind of tuning fragility real recommender teams spend a lot of
+time on (A/B testing weight changes, not just picking numbers that "feel
+right").
 
 ---
 
 ## Limitations and Risks
 
-Summarize some limitations of your recommender.
+- Tiny catalog (18 songs) with uneven genre coverage — 13 of 15 genres have
+  only one song, so most "genre match" recommendations aren't actually
+  competing against alternatives.
+- Genre match (+2.0) can outweigh a mood mismatch entirely when a genre only
+  has one song — confirmed with an adversarial "happy metal" test that
+  returned an aggressive-mood song to a user who asked for happy music.
+- No lyric, vocal, or production-style understanding at all — purely
+  structured-attribute matching.
+- `valence` is tracked in the data but not scored, so mood-label matches
+  don't account for how happy/sad a song actually sounds within that label.
 
-Examples:
-
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
-
-You will go deeper on this in your model card.
+Full analysis, including catalog composition data and the weight-shift
+experiment, is in `model_card.md`.
 
 ---
 
